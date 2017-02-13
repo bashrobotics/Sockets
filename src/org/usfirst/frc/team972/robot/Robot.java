@@ -10,11 +10,18 @@ import edu.wpi.first.wpilibj.*;
 
 public class Robot extends IterativeRobot {
 	public void teleopInit() {
+		System.out.println();
+		System.out.println();
 		try {
-			String ip = getJetsonIP();
+			String ip = null;
+			//do {
+				ip = getJetsonIP();
+			//} while (ip == null);
 			connect(ip);
+			
 		} catch (Exception e) {
-			e.printStackTrace();
+			//e.printStackTrace();
+			System.out.println("ERROR: " + e.getMessage());
 		}
 	}
 	
@@ -30,7 +37,7 @@ public class Robot extends IterativeRobot {
 		String received;
 		toServer.writeBytes(confirmationToken + '\n');
 		received = fromServer.readLine();
-		System.out.println(received);
+		System.out.println("We received " + received + " back from the server.");
 		clientSocket.close();
 	}
 	
@@ -40,16 +47,29 @@ public class Robot extends IterativeRobot {
 		String subnet = localIP.substring(0,localIP.length() - 3);
 		System.out.println("We need to search subnet " + subnet);
 		int timeout = 5;
+		String jetsonIP = null;
+		System.out.println("Reachable IPs:");
 		for(int i = 1; i < 255; i++){
 			String ip = subnet + "." + i;
 			if(InetAddress.getByName(ip).isReachable(timeout)){
-				System.out.println(ip + " is reachable");
-				if(!ip.equals(localIP) && i != 1 && i != 255){
-					return ip;
+				System.out.print("    " + ip + " is reachable ");
+				if(i == 1){
+					System.out.print("(Gateway)");
+				} else if (ip.equals(localIP)) {
+					System.out.print("(RoboRio)");
+				} else if (jetsonIP == null) {
+					System.out.print("(Jetson)");
+					jetsonIP = ip;
+				} else {
+					System.out.print("(Unknown)");
 				}
+				System.out.println();
 			}
 		}
-		return null;
+		if(jetsonIP == null){
+			System.out.println("No Jetson detected on the network. Try again.");
+		}
+		return jetsonIP;
 	}
 }
 
