@@ -9,67 +9,110 @@ import java.net.Socket;
 import edu.wpi.first.wpilibj.*;
 
 public class Robot extends IterativeRobot {
-	public void teleopInit() {
-		System.out.println();
-		System.out.println();
-		try {
-			String ip = null;
-			//do {
-				ip = getJetsonIP();
-			//} while (ip == null);
-			connect(ip);
-			
-		} catch (Exception e) {
-			//e.printStackTrace();
-			System.out.println("ERROR: " + e.getMessage());
-		}
-	}
 	
-	public void connect(String ip) throws Exception{
-		int port = 9720;
-		String confirmationToken = "972";
-		System.out.println("Connecting to " + ip + ":" + port + " with confirmation token:'" + confirmationToken + "'");
+	public void robotInit() {
+		startSockets();
+	}
+
+	public void startSockets() {
+		//Wait until we're connected to the network
+		waitUntilConnected(); //45 seconds
 		
-		Socket clientSocket = new Socket(ip, port);
-		DataOutputStream toServer = new DataOutputStream(clientSocket.getOutputStream());
-		BufferedReader fromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-	
-		String received;
-		toServer.writeBytes(confirmationToken + '\n');
-		received = fromServer.readLine();
-		System.out.println("We received " + received + " back from the server.");
-		clientSocket.close();
+		// Get Jetson IP
+		String ip = getJetsonIP(); //20 seconds
+		
+		// Connect to Jetson
+		connect(ip); //instant
 	}
-	
-	public String getJetsonIP() throws Exception{ //attempt at dynamically getting the Jetson's ip
-		String localIP = InetAddress.getLocalHost().getHostAddress();
-		System.out.println("RoboRio is on IP address " + localIP);
-		String subnet = localIP.substring(0,localIP.length() - 3);
-		System.out.println("We need to search subnet " + subnet);
-		int timeout = 5;
-		String jetsonIP = null;
-		System.out.println("Reachable IPs:");
-		for(int i = 1; i < 255; i++){
-			String ip = subnet + "." + i;
-			if(InetAddress.getByName(ip).isReachable(timeout)){
-				System.out.print("    " + ip + " is reachable ");
-				if(i == 1){
-					System.out.print("(Gateway)");
-				} else if (ip.equals(localIP)) {
-					System.out.print("(RoboRio)");
-				} else if (jetsonIP == null) {
-					System.out.print("(Jetson)");
-					jetsonIP = ip;
+
+	private void waitUntilConnected() {
+		boolean connected = false;
+		System.out.println("Waiting until we are connected to gateway...");
+		do {
+			try {
+				String ip = InetAddress.getLocalHost().getHostAddress();
+				if (ip != null) {
+					connected = true;
 				} else {
-					System.out.print("(Unknown)");
+					Thread.sleep(2000);
 				}
-				System.out.println();
+			} catch (Exception e) {
 			}
-		}
-		if(jetsonIP == null){
-			System.out.println("No Jetson detected on the network. Try again.");
-		}
+		} while (!connected);
+
+		System.out.println("Connected!");
+	}
+
+	private String getJetsonIP() {
+		System.out.println("Finding Jetson on network...");
+		String jetsonIP = null;
+		int n = 0;
+		do {
+			n++;
+			try {
+				String localIP = InetAddress.getLocalHost().getHostAddress();
+				// System.out.println("RoboRio is on IP address " + localIP);
+				String subnet = localIP.substring(0, localIP.length() - 3);
+				// System.out.println("We need to search subnet " + subnet);
+				int timeout = 5;
+				// System.out.println("Reachable IPs:");
+				for (int i = 1; i < 255; i++) {
+					String ip = subnet + "." + i;
+					if (InetAddress.getByName(ip).isReachable(timeout)) {
+						// System.out.print(" " + ip + " is reachable ");
+						if (i == 1) {
+							// System.out.print("(Gateway)");
+						} else if (ip.equals(localIP)) {
+							// System.out.print("(RoboRio)");
+						} else if (jetsonIP == null) {
+							// System.out.print("(Jetson)");
+							jetsonIP = ip;
+						} else {
+							// System.out.print("(Unknown)");
+						}
+						// System.out.println();
+					}
+				}
+			} catch (Exception e) {
+				// e.printStackTrace();
+				System.out.println("ERROR on getting Jetson: " + e.getMessage());
+				try {
+					Thread.sleep(3000);
+				} catch (Exception e2) {
+				}
+			}
+		} while (jetsonIP == null);
+		System.out.println("Found Jetson at " + jetsonIP + " in " + n + " tries!");
 		return jetsonIP;
 	}
-}
+	
+	private void connect(String ip) {
+		boolean connected = false;
+		do {
+			try {
+				int port = 9720;
+				String confirmationToken = "972";
+				System.out.println("Connecting to " + ip + ":" + port + " with confirmation token:'" + confirmationToken + "'");
 
+				Socket clientSocket = new Socket(ip, port);
+				DataOutputStream toServer = new DataOutputStream(clientSocket.getOutputStream());
+				BufferedReader fromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+				connected = true;
+
+				String received;
+				toServer.writeBytes(confirmationToken + '\n');
+				received = fromServer.readLine();
+				System.out.println("We received " + received + " back from the server.");
+				clientSocket.close();
+			} catch (Exception e) {
+				// e.printStackTrace();
+				System.out.println("ERROR on connection: " + e.getMessage());
+				try {
+					Thread.sleep(3000);
+				} catch (Exception e2) {
+				}
+			}
+		} while (!connected);
+		System.out.println("Connected to the Jetson!");
+	}	
+}
