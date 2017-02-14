@@ -6,58 +6,67 @@ import java.io.InputStreamReader;
 import java.net.InetAddress;
 import java.net.Socket;
 
-public class Jetson implements Runnable {	
-	
+public class Jetson implements Runnable {
+
 	public static Socket mainSocket = null;
-	
-	public void run(){
+
+	public void run() {
 		openSocket();
 	}
 
 	public void openSocket() {
-		//Wait until we're connected to the network
-		waitUntilConnected(); //45 seconds
-		
+		// Wait until we're connected to the network
+		waitUntilConnected(); // 45 seconds
+
 		// Get Jetson IP
-		String ip = getJetsonIP(); //20 seconds
-		
+		String ip = getJetsonIP(); // 20 seconds
+
 		// Connect to Jetson
-		mainSocket = connect(ip); //instant
+		mainSocket = connect(ip); // instant
 	}
-	
-	public boolean closeConnection() {
-		sendMessage("C");
-		try {
-			mainSocket.close();
-			mainSocket = null;
-			return true;
-		} catch (Exception e) {
-			System.out.println("ERROR closing socket: " + e.getMessage());
+
+	public static boolean isConnected() {
+		return (mainSocket != null);
+	}
+
+	public static boolean closeConnection() {
+		if (isConnected()) {
+			sendMessage("C");
+			try {
+				mainSocket.close();
+				mainSocket = null;
+				return true;
+			} catch (Exception e) {
+				System.out.println("ERROR closing socket: " + e.getMessage());
+				return false;
+			}
+		} else {
+			System.out.println("Warning: Not connected. Cannot close connection.");
 			return false;
 		}
 	}
-	
-	public boolean isConnected() {
-		return (mainSocket != null);
-	}
-	
-	public void gearVision() {
+
+	public static void gearVision() {
 		sendMessage("G");
 	}
-	
-	public void boilerVision() {
+
+	public static void boilerVision() {
 		sendMessage("B");
 	}
-	
-	private void sendMessage(String message) {
-		try {
-		DataOutputStream toServer = new DataOutputStream(mainSocket.getOutputStream());
-		toServer.writeBytes(message + '\n');
-		} catch (Exception e) {
-			System.out.println("ERROR sending message: " + e.getMessage());
+
+	private static void sendMessage(String message) {
+		if (isConnected()) {
+			try {
+				DataOutputStream toServer = new DataOutputStream(mainSocket.getOutputStream());
+				toServer.writeBytes(message + '\n');
+			} catch (Exception e) {
+				System.out.println("ERROR sending message: " + e.getMessage());
+			}
+		} else {
+			System.out.println("Warning: Not connected. Cannot send message.");
 		}
 	}
-	
+
 	private void waitUntilConnected() {
 		boolean connected = false;
 		System.out.println("Waiting until we are connected to gateway...");
@@ -118,14 +127,15 @@ public class Jetson implements Runnable {
 		System.out.println("Found Jetson at " + jetsonIP + " in " + n + " tries!");
 		return jetsonIP;
 	}
-	
+
 	private Socket connect(String ip) {
 		boolean connected = false;
 		do {
 			try {
 				int port = 9720;
 				String confirmationToken = "972";
-				System.out.println("Connecting to " + ip + ":" + port + " with confirmation token:'" + confirmationToken + "'");
+				System.out.println(
+						"Connecting to " + ip + ":" + port + " with confirmation token:'" + confirmationToken + "'");
 
 				Socket clientSocket = new Socket(ip, port);
 				DataOutputStream toServer = new DataOutputStream(clientSocket.getOutputStream());
@@ -136,7 +146,7 @@ public class Jetson implements Runnable {
 				toServer.writeBytes(confirmationToken + '\n');
 				received = fromServer.readLine();
 				System.out.println("We received " + received + " back from the server.");
-				if(confirmationToken.equals(received)){
+				if (confirmationToken.equals(received)) {
 					connected = true;
 					System.out.println("Connected to the Jetson!");
 					return clientSocket;
@@ -151,5 +161,5 @@ public class Jetson implements Runnable {
 			}
 		} while (!connected);
 		return null;
-	}	
+	}
 }
