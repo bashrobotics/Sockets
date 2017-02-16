@@ -9,6 +9,7 @@ import java.net.Socket;
 public class Jetson implements Runnable {
 
 	public static Socket mainSocket = null;
+	private static final String STATIC_IP = "10.9.72.2";
 
 	public void run() {
 		openSocket();
@@ -18,11 +19,22 @@ public class Jetson implements Runnable {
 		// Wait until we're connected to the network
 		waitUntilConnected(); // 45 seconds
 
-		// Get Jetson IP
-		String ip = getJetsonIP(); // 20 seconds
-
-		// Connect to Jetson
-		mainSocket = connect(ip); // instant
+		// Attempt to connect to Jetson's Static IP
+		boolean reachable;
+		try {
+			reachable = InetAddress.getByName(STATIC_IP).isReachable(10);
+		} catch (Exception e) {
+			reachable = false;
+		}
+		
+		if (reachable) {
+			System.out.println("Jetson is reachable at " + STATIC_IP);
+			mainSocket = connect(STATIC_IP);
+		} else {
+			System.out.println("Jetson is not reachable at it's static ip.");
+			String ip = getJetsonIP(); // 20 seconds
+			mainSocket = connect(ip);
+		}
 	}
 
 	public static boolean isConnected() {
@@ -82,7 +94,7 @@ public class Jetson implements Runnable {
 			}
 		} while (!connected);
 
-		System.out.println("Connected!");
+		System.out.println("Connected to gateway.");
 	}
 
 	private static String getJetsonIP() {
@@ -134,8 +146,7 @@ public class Jetson implements Runnable {
 			try {
 				int port = 9720;
 				String confirmationToken = "972";
-				System.out.println(
-						"Connecting to " + ip + ":" + port + " with confirmation token:'" + confirmationToken + "'");
+				System.out.println("Connecting to " + ip + ":" + port + " with confirmation token:'" + confirmationToken + "'");
 
 				Socket clientSocket = new Socket(ip, port);
 				DataOutputStream toServer = new DataOutputStream(clientSocket.getOutputStream());
