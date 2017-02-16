@@ -14,7 +14,7 @@ public class Jetson implements Runnable {
 		openSocket();
 	}
 
-	public void openSocket() {
+	public static void openSocket() {
 		// Wait until we're connected to the network
 		waitUntilConnected(); // 45 seconds
 
@@ -67,7 +67,7 @@ public class Jetson implements Runnable {
 		}
 	}
 
-	private void waitUntilConnected() {
+	private static void waitUntilConnected() {
 		boolean connected = false;
 		System.out.println("Waiting until we are connected to gateway...");
 		do {
@@ -85,7 +85,7 @@ public class Jetson implements Runnable {
 		System.out.println("Connected!");
 	}
 
-	private String getJetsonIP() {
+	private static String getJetsonIP() {
 		System.out.println("Finding Jetson on network...");
 		String jetsonIP = null;
 		int n = 0;
@@ -128,7 +128,7 @@ public class Jetson implements Runnable {
 		return jetsonIP;
 	}
 
-	private Socket connect(String ip) {
+	private static Socket connect(String ip) {
 		boolean connected = false;
 		do {
 			try {
@@ -149,6 +149,7 @@ public class Jetson implements Runnable {
 				if (confirmationToken.equals(received)) {
 					connected = true;
 					System.out.println("Connected to the Jetson!");
+					clientSocket.close();
 					return clientSocket;
 				}
 			} catch (Exception e) {
