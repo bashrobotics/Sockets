@@ -8,40 +8,39 @@ import java.net.Socket;
 
 public class Jetson implements Runnable {
 
-	public static Socket mainSocket = null;
-	private static final String STATIC_IP = "10.9.72.2";
+	private static Socket mainSocket = null;
 
-	public void run() {
+	private static double distance;
+	private static double angle;
+	//private static double time; //use this in the future maybe?
+	private static boolean read = false;
+
+	private static final String STATIC_IP = "10.9.72.2"; //supposed IP that the Jetson should be on
+
+	public void run() { //never call this. this is what gets called on Thread.start()
 		openSocket();
+		connectionLoop();
 	}
 
-	public static void openSocket() {
-		// Wait until we're connected to the network
-		waitUntilConnected(); // 45 seconds
-
-		// Attempt to connect to Jetson's Static IP
-		boolean reachable;
-		try {
-			reachable = InetAddress.getByName(STATIC_IP).isReachable(10);
-		} catch (Exception e) {
-			reachable = false;
-		}
-		
-		if (reachable) {
-			System.out.println("Jetson is reachable at " + STATIC_IP);
-			mainSocket = connect(STATIC_IP);
-		} else {
-			System.out.println("Jetson is not reachable at it's static ip.");
-			String ip = getJetsonIP(); // 20 seconds
-			mainSocket = connect(ip);
-		}
+	public static boolean newData(){ //do we have data from the jetson that we have not read yet?
+		return !read;
+	}
+	
+	public static double getDistance() { //get the last distance reading from the Jetson
+		read = true;
+		return distance;
 	}
 
-	public static boolean isConnected() {
+	public static double getAngle() { //get the last thaeda reading from the Jetson
+		read = true;
+		return angle;
+	}
+
+	public static boolean isConnected() { //are we currently connected to the Jetson
 		return (mainSocket != null);
 	}
-
-	public static boolean closeConnection() {
+	
+	public static boolean closeConnection() { //close our connection to the Jetson
 		if (isConnected()) {
 			sendMessage("C");
 			try {
@@ -57,12 +56,12 @@ public class Jetson implements Runnable {
 			return false;
 		}
 	}
-
-	public static void gearVision() {
+	
+	public static void startGearVision() { //start gear vision on the Jetson
 		sendMessage("G");
 	}
 
-	public static void boilerVision() {
+	public static void startBoilerVision() { //start boiler vision on the Jetson
 		sendMessage("B");
 	}
 
@@ -76,6 +75,28 @@ public class Jetson implements Runnable {
 			}
 		} else {
 			System.out.println("Warning: Not connected. Cannot send message.");
+		}
+	}
+
+	private static void openSocket() {
+		// Wait until we're connected to the network
+		waitUntilConnected(); // 45 seconds
+
+		// Attempt to connect to Jetson's Static IP
+		boolean reachable;
+		try {
+			reachable = InetAddress.getByName(STATIC_IP).isReachable(10);
+		} catch (Exception e) {
+			reachable = false;
+		}
+
+		if (reachable) {
+			System.out.println("Jetson is reachable at " + STATIC_IP);
+			mainSocket = connect(STATIC_IP);
+		} else {
+			System.out.println("Jetson is not reachable at it's static ip.");
+			String ip = getJetsonIP(); // 20 seconds
+			mainSocket = connect(ip);
 		}
 	}
 
@@ -146,7 +167,8 @@ public class Jetson implements Runnable {
 			try {
 				int port = 9720;
 				String confirmationToken = "972";
-				System.out.println("Connecting to " + ip + ":" + port + " with confirmation token:'" + confirmationToken + "'");
+				System.out.println(
+						"Connecting to " + ip + ":" + port + " with confirmation token:'" + confirmationToken + "'");
 
 				Socket clientSocket = new Socket(ip, port);
 				DataOutputStream toServer = new DataOutputStream(clientSocket.getOutputStream());
@@ -160,7 +182,7 @@ public class Jetson implements Runnable {
 				if (confirmationToken.equals(received)) {
 					connected = true;
 					System.out.println("Connected to the Jetson!");
-					clientSocket.close();
+					// clientSocket.close();
 					return clientSocket;
 				}
 			} catch (Exception e) {
@@ -174,4 +196,32 @@ public class Jetson implements Runnable {
 		} while (!connected);
 		return null;
 	}
+
+	private static boolean connectionLoop() {
+		System.out.println("Starting connection loop...");
+		try {
+			if (mainSocket == null) {
+				return false;
+			}
+			BufferedReader fromServer = new BufferedReader(new InputStreamReader(mainSocket.getInputStream()));
+			String received;
+			while (mainSocket != null) {
+				received = fromServer.readLine();
+				int comma = received.indexOf(',');
+				if (comma != -1) {
+					distance = Double.parseDouble(received.substring(0, comma));
+					angle = Double.parseDouble(received.substring(comma + 1, received.length()));
+					read = false;
+					System.out.println("d: " + distance + ", a: " + angle);
+				} else {
+					System.out.println("Info we received isn't a valid format: " + received);
+				}
+			}
+			return true;
+		} catch (Exception e) {
+			System.out.println("ERROR read loop: " + e.getMessage());
+			return false;
+		}
+	}
+
 }
