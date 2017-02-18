@@ -6,41 +6,81 @@ import java.io.InputStreamReader;
 import java.net.InetAddress;
 import java.net.Socket;
 
+/**
+ * The Class Jetson.
+ */
 public class Jetson implements Runnable {
 
+	/** The main socket. */
 	private static Socket mainSocket = null;
 
+	/** The latest distance calculation from the Jetson. */
 	private static double distance;
+	
+	/** The latest angle calculation from the Jetson. */
 	private static double angle;
-	//private static double time; //use this in the future maybe?
+	
+	/**  Has the new data been read?. */
 	private static boolean read = false;
+	
+	//private static double time; //use this in the future maybe?
 
-	private static final String STATIC_IP = "10.9.72.2"; //supposed IP that the Jetson should be on
-
-	public void run() { //never call this. this is what gets called on Thread.start()
+	/** The Jetson's supposed STATIC_IP. */
+	private static final String STATIC_IP = "10.9.72.2";
+	
+	/** 
+     * never call this. this is what gets called on Thread.start()
+	 * @see java.lang.Runnable#run()
+	 */
+	public void run() {
 		openSocket();
 		connectionLoop();
 	}
 
-	public static boolean newData(){ //do we have data from the jetson that we have not read yet?
+	/**
+	 * Is there new data received from the Jetson available?
+	 *
+	 * @return true, if successful
+	 */
+	public static boolean newData(){
 		return !read;
 	}
 	
-	public static double getDistance() { //get the last distance reading from the Jetson
+	/**
+	 * Gets the distance.
+	 *
+	 * @return the distance
+	 */
+	public static double getDistance() {
 		read = true;
 		return distance;
 	}
 
-	public static double getAngle() { //get the last thaeda reading from the Jetson
+	/**
+	 * Gets the angle.
+	 *
+	 * @return the angle
+	 */
+	public static double getAngle() {
 		read = true;
 		return angle;
 	}
 
-	public static boolean isConnected() { //are we currently connected to the Jetson
+	/**
+	 * Checks if the roboRio is connected to the Jetson.
+	 *
+	 * @return true, if is connected
+	 */
+	public static boolean isConnected() {
 		return (mainSocket != null);
 	}
 	
-	public static boolean closeConnection() { //close our connection to the Jetson
+	/**
+	 * Close connection to the Jetson.
+	 *
+	 * @return true, if successful
+	 */
+	public static boolean closeConnection() {
 		if (isConnected()) {
 			sendMessage("C");
 			try {
@@ -57,14 +97,25 @@ public class Jetson implements Runnable {
 		}
 	}
 	
+	/**
+	 * Start gear vision.
+	 */
 	public static void startGearVision() { //start gear vision on the Jetson
 		sendMessage("G");
 	}
 
+	/**
+	 * Start boiler vision.
+	 */
 	public static void startBoilerVision() { //start boiler vision on the Jetson
 		sendMessage("B");
 	}
 
+	/**
+	 * Send message to the Jetson.
+	 *
+	 * @param message the message
+	 */
 	private static void sendMessage(String message) {
 		if (isConnected()) {
 			try {
@@ -78,6 +129,9 @@ public class Jetson implements Runnable {
 		}
 	}
 
+	/**
+	 * Open socket.
+	 */
 	private static void openSocket() {
 		// Wait until we're connected to the network
 		waitUntilConnected(); // 45 seconds
@@ -100,6 +154,9 @@ public class Jetson implements Runnable {
 		}
 	}
 
+	/**
+	 * Wait until connected.
+	 */
 	private static void waitUntilConnected() {
 		boolean connected = false;
 		System.out.println("Waiting until we are connected to gateway...");
@@ -118,6 +175,11 @@ public class Jetson implements Runnable {
 		System.out.println("Connected to gateway.");
 	}
 
+	/**
+	 * Gets the Jetson's IP.
+	 *
+	 * @return the Jetson's IP
+	 */
 	private static String getJetsonIP() {
 		System.out.println("Finding Jetson on network...");
 		String jetsonIP = null;
@@ -161,6 +223,12 @@ public class Jetson implements Runnable {
 		return jetsonIP;
 	}
 
+	/**
+	 * Connect.
+	 *
+	 * @param ip the ip
+	 * @return the socket
+	 */
 	private static Socket connect(String ip) {
 		boolean connected = false;
 		do {
@@ -197,6 +265,11 @@ public class Jetson implements Runnable {
 		return null;
 	}
 
+	/**
+	 * Connection loop for reading data coming in from the Jetson.
+	 *
+	 * @return true, if successful
+	 */
 	private static boolean connectionLoop() {
 		System.out.println("Starting connection loop...");
 		try {
