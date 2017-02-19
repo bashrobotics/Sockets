@@ -82,6 +82,7 @@ public class Jetson implements Runnable {
 	 */
 	public static boolean closeConnection() {
 		if (isConnected()) {
+			System.out.println("Closing connection to Jetson");
 			sendMessage("C");
 			try {
 				mainSocket.close();
@@ -270,31 +271,44 @@ public class Jetson implements Runnable {
 	 *
 	 * @return true, if successful
 	 */
-	private static boolean connectionLoop() {
+	
+	static int messagesSent = 0;
+	
+	private static void connectionLoop() {
 		System.out.println("Starting connection loop...");
 		try {
-			if (mainSocket == null) {
-				return false;
-			}
 			BufferedReader fromServer = new BufferedReader(new InputStreamReader(mainSocket.getInputStream()));
-			String received;
+			String received;	
 			while (mainSocket != null) {
 				received = fromServer.readLine();
-				int comma = received.indexOf(',');
-				if (comma != -1) {
-					distance = Double.parseDouble(received.substring(0, comma));
-					angle = Double.parseDouble(received.substring(comma + 1, received.length()));
-					read = false;
-					System.out.println("d: " + distance + ", a: " + angle);
+				if(messagesSent >= 5) {
+					System.out.println("Got 5: Closing Connection to Jetson");
+					closeConnection();
+					break;
+				}
+				if(received != null) {
+					System.out.println("We received \"" + received+ "\" from the Jetson.");
+					int comma = received.indexOf(',');
+					if (comma != -1) {
+						distance = Double.parseDouble(received.substring(0, comma));
+						angle = Double.parseDouble(received.substring(comma + 1, received.length()));
+						read = false;
+						System.out.println("d: " + distance + ", a: " + angle);
+						messagesSent++;
+					} else {
+						System.out.println("Info we received isn't a valid format: " + received);
+					}
 				} else {
-					System.out.println("Info we received isn't a valid format: " + received);
+					//null: the socket was closed/lost connection
+					System.out.println("Socket Connection to Jetson Lost");
+					break;
 				}
 			}
-			return true;
 		} catch (Exception e) {
 			System.out.println("ERROR read loop: " + e.getMessage());
-			return false;
+			e.printStackTrace();
 		}
+		System.out.println("Connection loop ended.");
 	}
 
 }
