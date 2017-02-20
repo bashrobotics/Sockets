@@ -153,6 +153,7 @@ public class Jetson implements Runnable {
 			String ip = getJetsonIP(); // 20 seconds
 			mainSocket = connect(ip);
 		}
+		startGearVision();
 	}
 
 	/**
@@ -272,8 +273,6 @@ public class Jetson implements Runnable {
 	 * @return true, if successful
 	 */
 	
-	static int messagesSent = 0;
-	
 	private static void connectionLoop() {
 		System.out.println("Starting connection loop...");
 		try {
@@ -281,11 +280,6 @@ public class Jetson implements Runnable {
 			String received;	
 			while (mainSocket != null) {
 				received = fromServer.readLine();
-				if(messagesSent >= 5) {
-					System.out.println("Got 5: Closing Connection to Jetson");
-					closeConnection();
-					break;
-				}
 				if(received != null) {
 					System.out.println("We received \"" + received+ "\" from the Jetson.");
 					int comma = received.indexOf(',');
@@ -294,19 +288,21 @@ public class Jetson implements Runnable {
 						angle = Double.parseDouble(received.substring(comma + 1, received.length()));
 						read = false;
 						System.out.println("d: " + distance + ", a: " + angle);
-						messagesSent++;
 					} else {
 						System.out.println("Info we received isn't a valid format: " + received);
 					}
 				} else {
 					//null: the socket was closed/lost connection
+					
+					mainSocket.close();
+					mainSocket = null;
+					
 					System.out.println("Socket Connection to Jetson Lost");
 					break;
 				}
 			}
 		} catch (Exception e) {
 			System.out.println("ERROR read loop: " + e.getMessage());
-			e.printStackTrace();
 		}
 		System.out.println("Connection loop ended.");
 	}

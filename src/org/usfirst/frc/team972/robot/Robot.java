@@ -6,4 +6,8 @@ public class Robot extends IterativeRobot {
 	public void robotInit() {
 		(new Thread(new Jetson())).start();
 	}
+	public void teleopInit () {
+		System.out.println("TURNING OFF Jetson COMMUNICATIONS");
+		Jetson.closeConnection();
+	}
 }
