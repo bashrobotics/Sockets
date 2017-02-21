@@ -20,8 +20,14 @@ public class Jetson implements Runnable {
 	/** The latest angle calculation from the Jetson. */
 	private static double angle;
 	
+	/** The Time class equivalent for when the frame was captured. */
+	private static double frameCaptureTime;
+	
+	/** The robot time when the server sent and received the confirmation byte; */
+	private static long serverStartTime;
+	
 	/**  Has the new data been read?. */
-	private static boolean read = false;
+	private static boolean newData = false;
 	
 	//private static double time; //use this in the future maybe?
 
@@ -43,7 +49,7 @@ public class Jetson implements Runnable {
 	 * @return true, if successful
 	 */
 	public static boolean newData(){
-		return !read;
+		return newData;
 	}
 	
 	/**
@@ -52,7 +58,7 @@ public class Jetson implements Runnable {
 	 * @return the distance
 	 */
 	public static double getDistance() {
-		read = true;
+		newData = false;
 		return distance;
 	}
 
@@ -62,8 +68,18 @@ public class Jetson implements Runnable {
 	 * @return the angle
 	 */
 	public static double getAngle() {
-		read = true;
+		newData = false;
 		return angle;
+	}
+	
+	/**
+	 * Gets the time.
+	 *
+	 * @return the time at which the frame was captured
+	 */
+	public static double getTime() {
+		newData = false;
+		return frameCaptureTime;
 	}
 
 	/**
@@ -103,6 +119,7 @@ public class Jetson implements Runnable {
 	 */
 	public static void startGearVision() { //start gear vision on the Jetson
 		sendMessage("G");
+		newData = false;
 	}
 
 	/**
@@ -110,6 +127,7 @@ public class Jetson implements Runnable {
 	 */
 	public static void startBoilerVision() { //start boiler vision on the Jetson
 		sendMessage("B");
+		newData = false;
 	}
 
 	/**
@@ -248,6 +266,7 @@ public class Jetson implements Runnable {
 				String received;
 				toServer.writeBytes(confirmationToken + '\n');
 				received = fromServer.readLine();
+				serverStartTime = System.currentTimeMillis();
 				System.out.println("We received " + received + " back from the server.");
 				if (confirmationToken.equals(received)) {
 					connected = true;
@@ -283,10 +302,13 @@ public class Jetson implements Runnable {
 				if(received != null) {
 					System.out.println("We received \"" + received+ "\" from the Jetson.");
 					int comma = received.indexOf(',');
-					if (comma != -1) {
+					int colon = received.indexOf(':');
+					if (comma != -1 && colon != -1) {
 						distance = Double.parseDouble(received.substring(0, comma));
-						angle = Double.parseDouble(received.substring(comma + 1, received.length()));
-						read = false;
+						angle = Double.parseDouble(received.substring(comma + 1, colon));
+						long frameProcessingTime = (System.currentTimeMillis() - serverStartTime) - Long.parseLong(received.substring(colon + 1, received.length()));
+						frameCaptureTime = Time.get() - (frameProcessingTime*1000);
+						newData = true;
 						System.out.println("d: " + distance + ", a: " + angle);
 					} else {
 						System.out.println("Info we received isn't a valid format: " + received);
